@@ -3,3 +3,4 @@ kind: Kustomization
 
 resources:
   - config/overlays/deploy
+  - config/cluster/overlays/scaffold
