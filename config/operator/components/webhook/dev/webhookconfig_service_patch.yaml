@@ -71,3 +71,9 @@ webhooks:
       url: https://localhost:59443/validate-scale-spectrum-ibm-com-v1alpha1-approvalrequest
       caBundle: REPLACE_CABUNDLE
     failurePolicy: Ignore
+  - name: vremotecluster.scale.spectrum.ibm.com
+    clientConfig:
+      service: null
+      url: https://localhost:59443/validate-scale-spectrum-ibm-com-v1beta1-remotecluster
+      caBundle: REPLACE_CABUNDLE
+    failurePolicy: Ignore

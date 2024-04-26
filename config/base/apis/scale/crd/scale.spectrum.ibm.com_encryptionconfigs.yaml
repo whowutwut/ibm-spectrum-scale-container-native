@@ -5,22 +5,23 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.9.0
   creationTimestamp: null
-  name: networkpolicies.scale.spectrum.ibm.com
+  name: encryptionconfigs.scale.spectrum.ibm.com
 spec:
   group: scale.spectrum.ibm.com
   names:
     categories:
     - scale
-    kind: NetworkPolicy
-    listKind: NetworkPolicyList
-    plural: networkpolicies
-    singular: networkpolicy
-  scope: Cluster
+    kind: EncryptionConfig
+    listKind: EncryptionConfigList
+    plural: encryptionconfigs
+    shortNames:
+    - ec
+    singular: encryptionconfig
+  scope: Namespaced
   versions:
-  - name: v1alpha1
+  - name: v1beta1
     schema:
       openAPIV3Schema:
-        description: NetworkPolicy is the Schema for the NetworkPolicy API
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -35,10 +36,73 @@ spec:
           metadata:
             type: object
           spec:
-            description: NetworkPolicySpec defines the desired state of NetworkPolicy
+            description: spec defines the desired state of EncryptionConfig
+            properties:
+              backupServers:
+                description: If specified, The backup key servers configured for high
+                  availability.
+                items:
+                  type: string
+                maxItems: 5
+                type: array
+              cacert:
+                description: The ConfigMap storing CA and endpoint certificates used
+                  while adding/renewing key server certificate chain.
+                type: string
+              client:
+                description: The key client to communicate with the key Server.
+                maxLength: 16
+                type: string
+              filesystems:
+                description: If specified, a list of filesystems to be encrypted.
+                items:
+                  properties:
+                    algorithm:
+                      default: DEFAULTNISTSP800131A
+                      description: The algorithm to be used for encryption. Valid
+                        values are `DEFAULTNISTSP800131AFAST` and `DEFAULTNISTSP800131A`.
+                      enum:
+                      - DEFAULTNISTSP800131A
+                      - DEFAULTNISTSP800131AFAST
+                      type: string
+                    name:
+                      description: The name of the filesystem.
+                      type: string
+                  required:
+                  - name
+                  type: object
+                type: array
+              port:
+                default: 9443
+                description: It can be used to override the default port for the key
+                  server.
+                type: integer
+              remoteRKM:
+                description: The RKM ID from the remote cluster corresponding to given
+                  key server and tenant.
+                maxLength: 21
+                type: string
+              secret:
+                description: The name of the basic-auth secret containing the username
+                  and password to the key server.
+                type: string
+              server:
+                description: The key server name to communicate for encryption configuration.
+                type: string
+              tenant:
+                description: 'The default tenant name to the key server. This name
+                  can consist of any alphanumeric characters and only these non-alphanumeric
+                  characters: ''_''.'
+                maxLength: 16
+                type: string
+            required:
+            - client
+            - secret
+            - server
+            - tenant
             type: object
           status:
-            description: NetworkPolicyStatus defines the observed state of NetworkPolicy
+            description: status defines the observed state of EncryptionConfig
             properties:
               conditions:
                 items:
@@ -108,6 +172,8 @@ spec:
                   - type
                   type: object
                 type: array
+              rkmId:
+                type: string
             type: object
         type: object
     served: true

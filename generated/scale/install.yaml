@@ -43,7 +43,7 @@ metadata:
   labels:
     app.kubernetes.io/instance: ibm-spectrum-scale
     app.kubernetes.io/name: operator
-    app.kubernetes.io/version: v5.1.9.3
+    app.kubernetes.io/version: v5.2.0.0
     control-plane: controller-manager
     pod-security.kubernetes.io/audit: restricted
     pod-security.kubernetes.io/enforce: restricted
@@ -1303,6 +1303,23 @@ spec:
                         type: string
                       tscCmdPortRange:
                         type: string
+                      verbsPorts:
+                        type: string
+                      verbsRdma:
+                        enum:
+                        - enable
+                        - disable
+                        type: string
+                      verbsRdmaCm:
+                        enum:
+                        - enable
+                        - disable
+                        type: string
+                      verbsRdmaSend:
+                        enum:
+                        - "yes"
+                        - "no"
+                        type: string
                     type: object
                   hostAliases:
                     description: hostAliases that will be added to the internal DNS
@@ -1485,6 +1502,23 @@ spec:
                               type: string
                             tscCmdPortRange:
                               type: string
+                            verbsPorts:
+                              type: string
+                            verbsRdma:
+                              enum:
+                              - enable
+                              - disable
+                              type: string
+                            verbsRdmaCm:
+                              enum:
+                              - enable
+                              - disable
+                              type: string
+                            verbsRdmaSend:
+                              enum:
+                              - "yes"
+                              - "no"
+                              type: string
                           type: object
                         resources:
                           description: The Memory/CPU resource requests that will
@@ -1654,7 +1688,7 @@ spec:
                 properties:
                   accept:
                     description: Read the license and specify "true" to accept or
-                      "false" to not accept. https://www.ibm.com/support/customer/csol/terms/?id=L-WTYD-L6XAV7
+                      "false" to not accept. https://www.ibm.com/support/customer/csol/terms/?id=L-YXLU-VTKFBH
                       BY DOWNLOADING, INSTALLING, COPYING, ACCESSING, CLICKING ON
                       AN "ACCEPT" BUTTON, OR OTHERWISE USING THE PROGRAM, LICENSEE
                       AGREES TO THE TERMS OF THIS AGREEMENT. IF YOU ARE ACCEPTING
@@ -3561,10 +3595,6 @@ spec:
       name: Terminating
       priority: 10
       type: string
-    - jsonPath: .status.podsStatus.waitingForDelete
-      name: Waiting Delete
-      priority: 10
-      type: string
     - jsonPath: .status.quorumPods.total
       name: Quorum
       priority: 10
@@ -3759,6 +3789,23 @@ spec:
                     - "no"
                     type: string
                   tscCmdPortRange:
+                    type: string
+                  verbsPorts:
+                    type: string
+                  verbsRdma:
+                    enum:
+                    - enable
+                    - disable
+                    type: string
+                  verbsRdmaCm:
+                    enum:
+                    - enable
+                    - disable
+                    type: string
+                  verbsRdmaSend:
+                    enum:
+                    - "yes"
+                    - "no"
                     type: string
                 type: object
               edition:
@@ -3960,6 +4007,23 @@ spec:
                           type: string
                         tscCmdPortRange:
                           type: string
+                        verbsPorts:
+                          type: string
+                        verbsRdma:
+                          enum:
+                          - enable
+                          - disable
+                          type: string
+                        verbsRdmaCm:
+                          enum:
+                          - enable
+                          - disable
+                          type: string
+                        verbsRdmaSend:
+                          enum:
+                          - "yes"
+                          - "no"
+                          type: string
                       type: object
                     resources:
                       description: The Memory/CPU resource requests that will be set
@@ -4119,6 +4183,69 @@ spec:
                   - type
                   type: object
                 type: array
+              cordonAndDrain:
+                description: Details about nodes that are cordoned and drained and
+                  pods that are evicted by Scale operator.
+                properties:
+                  nodesCordonedByOperator:
+                    description: List of nodes that are cordoned by Scale operator.
+                      These nodes have status SchedulingDisabled. Nodes that are cordoned
+                      by third party like machine config operator are not listed.
+                    type: string
+                  nodesCordonedByOthers:
+                    description: List of nodes that are cordoned by third party like
+                      machine config operator. These nodes have status SchedulingDisabled.
+                      Nodes that are cordoned by Scale operator are not listed.
+                    type: string
+                  nodesDraining:
+                    description: List of nodes on which the Scale operator is currently
+                      evicting pods
+                    items:
+                      properties:
+                        node:
+                          description: The node that is currently drained by the Scale
+                            operator
+                          type: string
+                        ongoingPodEvictions:
+                          description: The pods that the Scale operator is currently
+                            evicting
+                          items:
+                            type: string
+                          type: array
+                        podEvictionsFailed:
+                          description: The pods that failed to evict. The Scale operator
+                            continues to try to evict these pods.
+                          items:
+                            type: string
+                          type: array
+                      required:
+                      - node
+                      - ongoingPodEvictions
+                      - podEvictionsFailed
+                      type: object
+                    type: array
+                  podEvictionRequests:
+                    description: List of daemon core pod evictions that are requested
+                      by third party (like machine config operator).
+                    items:
+                      properties:
+                        pods:
+                          description: Scale core pods that has been requested for
+                            eviction.
+                          type: string
+                        requestor:
+                          description: Name of requestor that requests the eviction
+                            of the pod.
+                          type: string
+                      required:
+                      - pods
+                      - requestor
+                      type: object
+                    type: array
+                required:
+                - nodesCordonedByOperator
+                - nodesCordonedByOthers
+                type: object
               failureGroup:
                 description: FailureGroup whose pods are upgraded next
                 type: string
@@ -4228,9 +4355,38 @@ spec:
                     description: List of core pods with unknown status. Pods scheduled
                       on unreachable nodes are listed here.
                     type: string
-                  podsWaitingForDelete:
+                  podsUnsafeToDelete:
+                    description: List of core pods that can currently not be deleted
+                      because deleting the pods would result in an unsafe condition.
+                    items:
+                      properties:
+                        deleteUnsafeReason:
+                          description: The reason why the pods are unsafe to be deleted
+                          type: string
+                        pods:
+                          description: List of core pods that are not safe to be deleted
+                            by the Storage Scale operator
+                          type: string
+                      required:
+                      - deleteUnsafeReason
+                      - pods
+                      type: object
+                    type: array
+                  podsWaitingToBeDeleted:
                     description: List of core pods that will be deleted soon
-                    type: string
+                    items:
+                      properties:
+                        deleteReason:
+                          description: Reason for deleting the core pods
+                          type: string
+                        pods:
+                          description: List of core pods that will be deleted soon
+                          type: string
+                      required:
+                      - deleteReason
+                      - pods
+                      type: object
+                    type: array
                   quorumPods:
                     description: List of pods that act as quorum node for Spectrum
                       Scale
@@ -4242,7 +4398,6 @@ spec:
                 - podsStarting
                 - podsTerminating
                 - podsUnknown
-                - podsWaitingForDelete
                 - quorumPods
                 type: object
               versions:
@@ -5000,6 +5155,8 @@ spec:
                   - type
                   type: object
                 type: array
+              rkmId:
+                type: string
             type: object
         type: object
     served: true
@@ -6025,125 +6182,6 @@ metadata:
   labels:
     app.kubernetes.io/instance: ibm-spectrum-scale
     app.kubernetes.io/name: operator
-  name: networkpolicies.scale.spectrum.ibm.com
-spec:
-  group: scale.spectrum.ibm.com
-  names:
-    categories:
-    - scale
-    kind: NetworkPolicy
-    listKind: NetworkPolicyList
-    plural: networkpolicies
-    singular: networkpolicy
-  scope: Cluster
-  versions:
-  - name: v1alpha1
-    schema:
-      openAPIV3Schema:
-        description: NetworkPolicy is the Schema for the NetworkPolicy API
-        properties:
-          apiVersion:
-            description: 'APIVersion defines the versioned schema of this representation
-              of an object. Servers should convert recognized schemas to the latest
-              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
-            type: string
-          kind:
-            description: 'Kind is a string value representing the REST resource this
-              object represents. Servers may infer this from the endpoint the client
-              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
-            type: string
-          metadata:
-            type: object
-          spec:
-            description: NetworkPolicySpec defines the desired state of NetworkPolicy
-            type: object
-          status:
-            description: NetworkPolicyStatus defines the observed state of NetworkPolicy
-            properties:
-              conditions:
-                items:
-                  description: "Condition contains details for one aspect of the current
-                    state of this API Resource. --- This struct is intended for direct
-                    use as an array at the field path .status.conditions.  For example,
-                    \n type FooStatus struct{ // Represents the observations of a
-                    foo's current state. // Known .status.conditions.type are: \"Available\",
-                    \"Progressing\", and \"Degraded\" // +patchMergeKey=type // +patchStrategy=merge
-                    // +listType=map // +listMapKey=type Conditions []metav1.Condition
-                    `json:\"conditions,omitempty\" patchStrategy:\"merge\" patchMergeKey:\"type\"
-                    protobuf:\"bytes,1,rep,name=conditions\"` \n // other fields }"
-                  properties:
-                    lastTransitionTime:
-                      description: lastTransitionTime is the last time the condition
-                        transitioned from one status to another. This should be when
-                        the underlying condition changed.  If that is not known, then
-                        using the time when the API field changed is acceptable.
-                      format: date-time
-                      type: string
-                    message:
-                      description: message is a human readable message indicating
-                        details about the transition. This may be an empty string.
-                      maxLength: 32768
-                      type: string
-                    observedGeneration:
-                      description: observedGeneration represents the .metadata.generation
-                        that the condition was set based upon. For instance, if .metadata.generation
-                        is currently 12, but the .status.conditions[x].observedGeneration
-                        is 9, the condition is out of date with respect to the current
-                        state of the instance.
-                      format: int64
-                      minimum: 0
-                      type: integer
-                    reason:
-                      description: reason contains a programmatic identifier indicating
-                        the reason for the condition's last transition. Producers
-                        of specific condition types may define expected values and
-                        meanings for this field, and whether the values are considered
-                        a guaranteed API. The value should be a CamelCase string.
-                        This field may not be empty.
-                      maxLength: 1024
-                      minLength: 1
-                      pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
-                      type: string
-                    status:
-                      description: status of the condition, one of True, False, Unknown.
-                      enum:
-                      - "True"
-                      - "False"
-                      - Unknown
-                      type: string
-                    type:
-                      description: type of condition in CamelCase or in foo.example.com/CamelCase.
-                        --- Many .condition.type values are consistent across resources
-                        like Available, but because arbitrary conditions can be useful
-                        (see .node.status.conditions), the ability to deconflict is
-                        important. The regex it matches is (dns1123SubdomainFmt/)?(qualifiedNameFmt)
-                      maxLength: 316
-                      pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
-                      type: string
-                  required:
-                  - lastTransitionTime
-                  - message
-                  - reason
-                  - status
-                  - type
-                  type: object
-                type: array
-            type: object
-        type: object
-    served: true
-    storage: true
-    subresources:
-      status: {}
----
-apiVersion: apiextensions.k8s.io/v1
-kind: CustomResourceDefinition
-metadata:
-  annotations:
-    controller-gen.kubebuilder.io/version: v0.9.0
-  creationTimestamp: null
-  labels:
-    app.kubernetes.io/instance: ibm-spectrum-scale
-    app.kubernetes.io/name: operator
   name: pmcollectors.scale.spectrum.ibm.com
 spec:
   group: scale.spectrum.ibm.com
@@ -6802,9 +6840,6 @@ spec:
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
-    - jsonPath: .spec.gui.host
-      name: Host
-      type: string
     - jsonPath: .status.conditions[?(@.type=="Ready")].status
       name: Ready
       type: string
@@ -6834,8 +6869,10 @@ spec:
               contactNodes:
                 description: This property is optional and provides a list of nodes
                   from the storage cluster to be used as the remote cluster contact
-                  nodes. The names should be the daemon node names. If not specified,
-                  the operator uses any 3 nodes detected from the storage cluster.
+                  nodes. The names must be the daemon node names. If not specified,
+                  the operator uses all quorum nodes detected from the storage cluster.
+                  If the contact node names are not resolvable in local cluster, configure
+                  the 'hostAliases' with node name and IP in Cluster CR.
                 items:
                   type: string
                 type: array
@@ -6853,14 +6890,38 @@ spec:
                       namespace.
                     type: string
                   host:
-                    description: host of the remote cluster REST API endpoint.  This
-                      must be resolvable by DNS.
+                    description: host references a REST API endpoint on the remote
+                      cluster. This must be resolvable by DNS. This field is DEPRECATED
+                      and will be removed in a future release. Use field 'hosts' instead.
                     type: string
+                  hosts:
+                    description: hosts references one or more REST API endpoints on
+                      the remote cluster. Up to 3 endpoints can be specified. The
+                      hosts must be resolvable by DNS.
+                    items:
+                      type: string
+                    maxItems: 3
+                    type: array
                   insecureSkipVerify:
                     description: insecureSkipVerify controls whether a client verifies
                       the server's certificate chain and host name. If set true, TLS
                       is susceptible to machine-in-the-middle attacks.
                     type: boolean
+                  passwordRotation:
+                    description: passwordRotation allows to configure automatic password
+                      rotation of the container operator and CSI admin GUI users.
+                      Automatic password rotation is disabled if this section is not
+                      specified.
+                    properties:
+                      passwordChangeInterval:
+                        default: "80"
+                        description: 'passwordChangeInterval allows the configuration
+                          in days for the operator to change the user passwords on
+                          the storage cluster. Specify the value surrounded by double
+                          quotes (like passwordChangeFrequency: "30"). The default
+                          value is 80 days.'
+                        type: string
+                    type: object
                   port:
                     default: 443
                     description: It specifies the port of the Remote Cluster.
@@ -6878,7 +6939,6 @@ spec:
                     type: string
                 required:
                 - csiSecretName
-                - host
                 - secretName
                 type: object
             required:
@@ -6955,6 +7015,11 @@ spec:
                   - type
                   type: object
                 type: array
+              lastPasswordChange:
+                description: lastPasswordChange indicates when the passwords for the
+                  remote storage users was last changed by the operator. This field
+                  is only present if the automatic password rotation function is enabled.
+                type: string
               localKeySHADigest:
                 description: localKeySHADigest is the digest of the public access
                   key that must be used by the remote cluster in order to communicate
@@ -7420,7 +7485,7 @@ spec:
                     name:
                       description: Define the name of the site.
                       maxLength: 60
-                      pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$
+                      pattern: ^[a-z0-9]([_a-z0-9]*[a-z0-9])?$
                       type: string
                   required:
                   - kubeApi
@@ -7907,6 +7972,83 @@ spec:
     subresources:
       status: {}
 ---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.9.0
+  creationTimestamp: null
+  labels:
+    app.kubernetes.io/instance: ibm-spectrum-scale
+    app.kubernetes.io/name: operator
+  name: volumes.scale.spectrum.ibm.com
+spec:
+  group: scale.spectrum.ibm.com
+  names:
+    kind: Volume
+    listKind: VolumeList
+    plural: volumes
+    singular: volume
+  scope: Namespaced
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: Volume
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: VolumeSpec defines the desired state of Volume
+            properties:
+              accessModes:
+                items:
+                  type: string
+                type: array
+              capacity:
+                additionalProperties:
+                  anyOf:
+                  - type: integer
+                  - type: string
+                  pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                  x-kubernetes-int-or-string: true
+                description: ResourceList is a set of (resource name, quantity) pairs.
+                type: object
+              consistencyGroup:
+                type: string
+              pvcName:
+                type: string
+              pvcNamespace:
+                type: string
+              reclaimPolicy:
+                description: PersistentVolumeReclaimPolicy describes a policy for
+                  end-of-life maintenance of persistent volumes.
+                type: string
+            required:
+            - accessModes
+            - capacity
+            - consistencyGroup
+            - pvcName
+            - pvcNamespace
+            - reclaimPolicy
+            type: object
+          status:
+            description: VolumeStatus defines the observed state of Volume
+            type: object
+        type: object
+    served: true
+    storage: true
+---
 apiVersion: v1
 imagePullSecrets:
 - name: ibm-spectrum-scale-csi-registrykey
@@ -8196,44 +8338,6 @@ rules:
   - patch
   - update
   - watch
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  labels:
-    app.kubernetes.io/instance: ibm-spectrum-scale
-    app.kubernetes.io/name: coredns
-  name: ibm-spectrum-scale-dns
-rules:
-- apiGroups:
-  - ""
-  resources:
-  - endpoints
-  - services
-  - pods
-  - namespaces
-  verbs:
-  - list
-  - watch
-- apiGroups:
-  - discovery.k8s.io
-  resources:
-  - endpointslices
-  verbs:
-  - list
-  - watch
-- apiGroups:
-  - authentication.k8s.io
-  resources:
-  - tokenreviews
-  verbs:
-  - create
-- apiGroups:
-  - authorization.k8s.io
-  resources:
-  - subjectaccessreviews
-  verbs:
-  - create
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -8585,6 +8689,7 @@ rules:
   - poddisruptionbudgets
   verbs:
   - create
+  - delete
   - get
   - list
   - patch
@@ -9454,22 +9559,6 @@ kind: ClusterRoleBinding
 metadata:
   labels:
     app.kubernetes.io/instance: ibm-spectrum-scale
-    app.kubernetes.io/name: coredns
-  name: ibm-spectrum-scale-dns
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: ibm-spectrum-scale-dns
-subjects:
-- kind: ServiceAccount
-  name: ibm-spectrum-scale-dns
-  namespace: ibm-spectrum-scale-dns
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  labels:
-    app.kubernetes.io/instance: ibm-spectrum-scale
     app.kubernetes.io/name: operator
   name: ibm-spectrum-scale-operator
 roleRef:
@@ -9518,28 +9607,22 @@ data:
   controller_manager_config.yaml: |
     apiVersion: scale.spectrum.ibm.com/v1alpha1
     kind: ClusterManagerConfig
-    health:
-      healthProbeBindAddress: :8081
-    metrics:
-      bindAddress: 127.0.0.1:8080
-    webhook:
-      port: 9443
     images:
-      coreECE: cp.icr.io/cp/spectrum/scale/erasure-code/ibm-spectrum-scale-daemon@sha256:6426c2dbfbb607df8ad6caf63dfaf64235e60f8174ce78a86d7bd86729e48f7f
-      coreDME: cp.icr.io/cp/spectrum/scale/data-management/ibm-spectrum-scale-daemon@sha256:26880dbf5dfe214fc00581826d1486069cb7489fe23e64904eb7004d8db31602
-      coreDAE: cp.icr.io/cp/spectrum/scale/data-access/ibm-spectrum-scale-daemon@sha256:151a3e73ea7d8be39b4f74fb1516d2043f33665a21cc1351a7b6401f46b9a9fd
-      coreInit: cp.icr.io/cp/spectrum/scale/ibm-spectrum-scale-core-init@sha256:79b1354e5a4c3c0341b448ca3fcd504a1b33df94f74099046cfa6e13b883d1f8
-      gui: cp.icr.io/cp/spectrum/scale/ibm-spectrum-scale-gui@sha256:29e828701e55c5de848f83a188b2a09de35227aeb6bbdc06ad01b5ec34d2c654
-      postgres: cp.icr.io/cp/spectrum/scale/postgres@sha256:b2f06ce12103bedbc0a49ae4ffff062d90824e0f45462de712f66952679f7670
-      logs: cp.icr.io/cp/spectrum/scale/ubi-minimal@sha256:582e18f13291d7c686ec4e6e92d20b24c62ae0fc72767c46f30a69b1a6198055
-      pmcollector: cp.icr.io/cp/spectrum/scale/ibm-spectrum-scale-pmcollector@sha256:41c90bb86fafc5785376d842b098ddbc98bc94b64421e8da7c5aaa54bd9602e8
-      sysmon: cp.icr.io/cp/spectrum/scale/ibm-spectrum-scale-monitor@sha256:815ee1b6af28e693a9b1d54b2b496a3e7dc5b25c51cf60e17a7faa222e44a8b3
-      grafanaBridge: cp.icr.io/cp/spectrum/scale/ibm-spectrum-scale-grafana-bridge@sha256:8bf1a89ee1e9e52a3f9cd49e1c1747b02fbe7f84f071667ab0e12ea6f25f32f2
-      coreDNS: cp.icr.io/cp/spectrum/scale/ibm-spectrum-scale-coredns@sha256:1ba4d51e896607c6f968f8df8e04ccfe7a71babd778838c9de040beda6bf1ff7
-      mustGather: icr.io/cpopen/ibm-spectrum-scale-must-gather@sha256:78bd4a9ca171ff062a9de912ea782a7eb1208ec68d04e1e71a12767fed8e8d1c
-      ganesha: cp.icr.io/cp/spectrum/scale/ibm-spectrum-scale-ganesha@sha256:54870c3c6cdd36799e08f8808580cc81d03c05ddad42e9af3ccf22d67fe112e2
-      stunnel: cp.icr.io/cp/spectrum/scale/ibm-spectrum-scale-stunnel@sha256:76e33b772faf6c823b65668f2ff31b4603cbfeb768b1eb77629ad23f2071ce76
-      pmsensors: cp.icr.io/cp/spectrum/scale/ibm-spectrum-scale-pmsensors@sha256:fedb2b2c71c9609125e4e2acd6354a5eccd9af0fba5459f19cd234afc674c913
+      coreECE: cp.icr.io/cp/spectrum/scale/erasure-code/ibm-spectrum-scale-daemon@sha256:8d0e78cc97ae6d23ea0585e98a43d32c52c4717ff426c5eeff6ad122b735c571
+      coreDME: cp.icr.io/cp/spectrum/scale/data-management/ibm-spectrum-scale-daemon@sha256:65a1b65e4076ac7be840904a6a1d59eb74849cda58a1a4a59b2f9a8de94652de
+      coreDAE: cp.icr.io/cp/spectrum/scale/data-access/ibm-spectrum-scale-daemon@sha256:0a6c1c0c588168bde48c82ae0ab2ad0ab51429680840dca90f19b24fcbfc3c2c
+      coreInit: cp.icr.io/cp/spectrum/scale/ibm-spectrum-scale-core-init@sha256:089718b2d96d909b86bf19448c4d86f31a3877eb450d465d830e55133415015d
+      gui: cp.icr.io/cp/spectrum/scale/ibm-spectrum-scale-gui@sha256:93288c812f0bace075eb785f519d6d7f684bdb33407c44a93b53df9abdd16e0a
+      postgres: cp.icr.io/cp/spectrum/scale/postgres@sha256:bbd7346fab25b7e0b25f214829d6ebfb78ef0465059492e46dee740ce8fcd844
+      logs: cp.icr.io/cp/spectrum/scale/ubi-minimal@sha256:bc552efb4966aaa44b02532be3168ac1ff18e2af299d0fe89502a1d9fabafbc5
+      pmcollector: cp.icr.io/cp/spectrum/scale/ibm-spectrum-scale-pmcollector@sha256:07a9e951ab315724ca39e332a7559ca98519442b0669241fd97ffdb3a0381667
+      sysmon: cp.icr.io/cp/spectrum/scale/ibm-spectrum-scale-monitor@sha256:3f41d20e7beaf757778d8650172adf8456569607dab3479eb4524407ed2e4a13
+      grafanaBridge: cp.icr.io/cp/spectrum/scale/ibm-spectrum-scale-grafana-bridge@sha256:a6ca689d8205f17bb278910c521842f98ced8537aba55b287792a91269bf2f41
+      coreDNS: cp.icr.io/cp/spectrum/scale/ibm-spectrum-scale-coredns@sha256:88cbfe40fd302a6467cb7e852b298f6c8d8659782ab313706d491d3ddf172a6e
+      mustGather: icr.io/cpopen/ibm-spectrum-scale-must-gather@sha256:eab5b2e72579b96f2cfc04162e4dd6ace7eb3570f2f08dca552c045ea29faa3d
+      ganesha: cp.icr.io/cp/spectrum/scale/ibm-spectrum-scale-ganesha@sha256:2adb24635e4c67ce940c79f611c08b3518004259f825cb7f719e262d18242728
+      stunnel: cp.icr.io/cp/spectrum/scale/ibm-spectrum-scale-stunnel@sha256:c55b0718d6bdc1b5995517e205cd0c2993d735a532b6358663e15207c6c6a7f3
+      pmsensors: cp.icr.io/cp/spectrum/scale/ibm-spectrum-scale-pmsensors@sha256:7befbffc26148c416bf6cb6e3c3174231c8748e4bfd8371acd3b94606b22f5bc
 kind: ConfigMap
 metadata:
   labels:
@@ -9571,7 +9654,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   annotations:
-    productVersion: 2.10.1
+    productVersion: 2.11.0
   labels:
     app.kubernetes.io/instance: ibm-spectrum-scale-csi-operator
     app.kubernetes.io/managed-by: ibm-spectrum-scale-csi-operator
@@ -9590,7 +9673,7 @@ spec:
       annotations:
         productID: ibm-spectrum-scale-csi-operator
         productName: IBM Spectrum Scale CSI Operator
-        productVersion: 2.10.1
+        productVersion: 2.11.0
       labels:
         app.kubernetes.io/instance: ibm-spectrum-scale-csi-operator
         app.kubernetes.io/managed-by: ibm-spectrum-scale-csi-operator
@@ -9617,26 +9700,26 @@ spec:
         - name: SHORTNAME_NODE_MAPPING
           value: "yes"
         - name: CSI_SNAPSHOTTER_IMAGE
-          value: cp.icr.io/cp/spectrum/scale/csi/csi-snapshotter@sha256:becc53e25b96573f61f7469923a92fb3e9d3a3781732159954ce0d9da07233a2
+          value: cp.icr.io/cp/spectrum/scale/csi/csi-snapshotter@sha256:1a29ab1e4ecdc33a84062cec757620d9787c28b28793202c5b78ae097c3dee27
         - name: CSI_ATTACHER_IMAGE
-          value: cp.icr.io/cp/spectrum/scale/csi/csi-attacher@sha256:4eb73137b66381b7b5dfd4d21d460f4b4095347ab6ed4626e0199c29d8d021af
+          value: cp.icr.io/cp/spectrum/scale/csi/csi-attacher@sha256:d69cc72025f7c40dae112ff989e920a3331583497c8dfb1600c5ae0e37184a29
         - name: CSI_PROVISIONER_IMAGE
-          value: cp.icr.io/cp/spectrum/scale/csi/csi-provisioner@sha256:d078dc174323407e8cc6f0f9abd4efaac5db27838f1564d0253d5e3233e3f17f
+          value: cp.icr.io/cp/spectrum/scale/csi/csi-provisioner@sha256:de79c8bbc271622eb94d2ee8689f189ea7c1cb6adac260a421980fe5eed66708
         - name: CSI_LIVENESSPROBE_IMAGE
-          value: cp.icr.io/cp/spectrum/scale/csi/livenessprobe@sha256:4dc0b87ccd69f9865b89234d8555d3a614ab0a16ed94a3016ffd27f8106132ce
+          value: cp.icr.io/cp/spectrum/scale/csi/livenessprobe@sha256:5baeb4a6d7d517434292758928bb33efc6397368cbb48c8a4cf29496abf4e987
         - name: CSI_NODE_REGISTRAR_IMAGE
-          value: cp.icr.io/cp/spectrum/scale/csi/csi-node-driver-registrar@sha256:f6717ce72a2615c7fbc746b4068f788e78579c54c43b8716e5ce650d97af2df1
+          value: cp.icr.io/cp/spectrum/scale/csi/csi-node-driver-registrar@sha256:c53535af8a7f7e3164609838c4b191b42b2d81238d75c1b2a2b582ada62a9780
         - name: CSI_RESIZER_IMAGE
-          value: cp.icr.io/cp/spectrum/scale/csi/csi-resizer@sha256:2e2b44393539d744a55b9370b346e8ebd95a77573064f3f9a8caf18c22f4d0d0
+          value: cp.icr.io/cp/spectrum/scale/csi/csi-resizer@sha256:4c148bbdf883153bc72d321be4dc55c33774a6d98b2b3e0c2da6ae389149a9b7
         - name: CSI_DRIVER_IMAGE
-          value: cp.icr.io/cp/spectrum/scale/csi/ibm-spectrum-scale-csi-driver@sha256:a61878203bb642320e67edc9229bf84ad37ef0828522ad6d8566bd7747d631f6
+          value: cp.icr.io/cp/spectrum/scale/csi/ibm-spectrum-scale-csi-driver@sha256:b2bc343eadbc11d9ed74a8477d2cd0a7a8460a72203d3f6236d4662e68df1166
         - name: METRICS_BIND_ADDRESS
           value: "8383"
         - name: WATCH_NAMESPACE
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
-        image: icr.io/cpopen/ibm-spectrum-scale-csi-operator@sha256:ccb895d8916171352aed2f06d9d6f3a1a7aba20405cd129091e9b57d59ad1343
+        image: icr.io/cpopen/ibm-spectrum-scale-csi-operator@sha256:bd264199ac10d574163bfa32bb88844fd786ee6f794a56e235591d2f051c7807
         imagePullPolicy: IfNotPresent
         livenessProbe:
           exec:
@@ -9689,7 +9772,7 @@ metadata:
   labels:
     app.kubernetes.io/instance: ibm-spectrum-scale
     app.kubernetes.io/name: operator
-    app.kubernetes.io/version: v5.1.9.3
+    app.kubernetes.io/version: v5.2.0.0
     control-plane: controller-manager
   name: ibm-spectrum-scale-controller-manager
   namespace: ibm-spectrum-scale-operator
@@ -9705,7 +9788,7 @@ spec:
       labels:
         app.kubernetes.io/instance: ibm-spectrum-scale
         app.kubernetes.io/name: operator
-        app.kubernetes.io/version: v5.1.9.3
+        app.kubernetes.io/version: v5.2.0.0
         control-plane: controller-manager
     spec:
       affinity:
@@ -9725,7 +9808,7 @@ spec:
                 - s390x
       containers:
       - args:
-        - --config=controller_manager_config.yaml
+        - --config=/config/controller_manager_config.yaml
         - --zap-log-level=1
         command:
         - /manager
@@ -9736,7 +9819,7 @@ spec:
           valueFrom:
             resourceFieldRef:
               resource: limits.memory
-        image: icr.io/cpopen/ibm-spectrum-scale-operator@sha256:85fb826bdafff98bac9046001f8fb6e8dd5da67c2322b12b2e436ba86ff3d99a
+        image: icr.io/cpopen/ibm-spectrum-scale-operator@sha256:d44f11cc61f410dd20d7bb52ac28eebc80f928eede9be434c270a7ad5648b626
         livenessProbe:
           httpGet:
             path: /healthz
@@ -9775,9 +9858,8 @@ spec:
         - mountPath: /tmp/k8s-webhook-server/serving-certs
           name: cert
           readOnly: true
-        - mountPath: /controller_manager_config.yaml
+        - mountPath: /config
           name: manager-config
-          subPath: controller_manager_config.yaml
         - mountPath: /etc/ssl/service
           name: cabundle
       nodeSelector:
@@ -9786,6 +9868,7 @@ spec:
       terminationGracePeriodSeconds: 10
       tolerations:
       - effect: NoSchedule
+        key: node-role.kubernetes.io/master
         operator: Exists
       topologySpreadConstraints:
       - labelSelector:
@@ -10112,6 +10195,26 @@ webhooks:
     - DELETE
     resources:
     - localdisks
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: ibm-spectrum-scale-webhook-service
+      namespace: ibm-spectrum-scale-operator
+      path: /validate-scale-spectrum-ibm-com-v1beta1-remotecluster
+  failurePolicy: Fail
+  name: vremotecluster.scale.spectrum.ibm.com
+  rules:
+  - apiGroups:
+    - scale.spectrum.ibm.com
+    apiVersions:
+    - v1beta1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - remoteclusters
   sideEffects: None
 - admissionReviewVersions:
   - v1

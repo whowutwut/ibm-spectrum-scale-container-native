@@ -205,6 +205,23 @@ spec:
                         type: string
                       tscCmdPortRange:
                         type: string
+                      verbsPorts:
+                        type: string
+                      verbsRdma:
+                        enum:
+                        - enable
+                        - disable
+                        type: string
+                      verbsRdmaCm:
+                        enum:
+                        - enable
+                        - disable
+                        type: string
+                      verbsRdmaSend:
+                        enum:
+                        - "yes"
+                        - "no"
+                        type: string
                     type: object
                   hostAliases:
                     description: hostAliases that will be added to the internal DNS
@@ -387,6 +404,23 @@ spec:
                               type: string
                             tscCmdPortRange:
                               type: string
+                            verbsPorts:
+                              type: string
+                            verbsRdma:
+                              enum:
+                              - enable
+                              - disable
+                              type: string
+                            verbsRdmaCm:
+                              enum:
+                              - enable
+                              - disable
+                              type: string
+                            verbsRdmaSend:
+                              enum:
+                              - "yes"
+                              - "no"
+                              type: string
                           type: object
                         resources:
                           description: The Memory/CPU resource requests that will
@@ -556,7 +590,7 @@ spec:
                 properties:
                   accept:
                     description: Read the license and specify "true" to accept or
-                      "false" to not accept. https://www.ibm.com/support/customer/csol/terms/?id=L-WTYD-L6XAV7
+                      "false" to not accept. https://www.ibm.com/support/customer/csol/terms/?id=L-YXLU-VTKFBH
                       BY DOWNLOADING, INSTALLING, COPYING, ACCESSING, CLICKING ON
                       AN "ACCEPT" BUTTON, OR OTHERWISE USING THE PROGRAM, LICENSEE
                       AGREES TO THE TERMS OF THIS AGREEMENT. IF YOU ARE ACCEPTING

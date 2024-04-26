@@ -1,0 +1,21 @@
+apiVersion: scale.spectrum.ibm.com/v1beta1
+kind: Filesystem
+metadata:
+  name: local-sample
+spec:
+  local:
+    blockSize: 4M
+    pools:
+    - name: system
+      disks:
+        - worker0-vdb
+        - worker0-vdc
+        - worker1-vdb
+        - worker1-vdc
+        - worker2-vdb
+        - worker2-vdc
+  seLinuxOptions:
+    level: s0
+    role: object_r
+    type: container_file_t
+    user: system_u

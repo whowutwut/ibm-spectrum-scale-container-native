@@ -41,10 +41,6 @@ spec:
       name: Terminating
       priority: 10
       type: string
-    - jsonPath: .status.podsStatus.waitingForDelete
-      name: Waiting Delete
-      priority: 10
-      type: string
     - jsonPath: .status.quorumPods.total
       name: Quorum
       priority: 10
@@ -239,6 +235,23 @@ spec:
                     - "no"
                     type: string
                   tscCmdPortRange:
+                    type: string
+                  verbsPorts:
+                    type: string
+                  verbsRdma:
+                    enum:
+                    - enable
+                    - disable
+                    type: string
+                  verbsRdmaCm:
+                    enum:
+                    - enable
+                    - disable
+                    type: string
+                  verbsRdmaSend:
+                    enum:
+                    - "yes"
+                    - "no"
                     type: string
                 type: object
               edition:
@@ -440,6 +453,23 @@ spec:
                           type: string
                         tscCmdPortRange:
                           type: string
+                        verbsPorts:
+                          type: string
+                        verbsRdma:
+                          enum:
+                          - enable
+                          - disable
+                          type: string
+                        verbsRdmaCm:
+                          enum:
+                          - enable
+                          - disable
+                          type: string
+                        verbsRdmaSend:
+                          enum:
+                          - "yes"
+                          - "no"
+                          type: string
                       type: object
                     resources:
                       description: The Memory/CPU resource requests that will be set
@@ -599,6 +629,69 @@ spec:
                   - type
                   type: object
                 type: array
+              cordonAndDrain:
+                description: Details about nodes that are cordoned and drained and
+                  pods that are evicted by Scale operator.
+                properties:
+                  nodesCordonedByOperator:
+                    description: List of nodes that are cordoned by Scale operator.
+                      These nodes have status SchedulingDisabled. Nodes that are cordoned
+                      by third party like machine config operator are not listed.
+                    type: string
+                  nodesCordonedByOthers:
+                    description: List of nodes that are cordoned by third party like
+                      machine config operator. These nodes have status SchedulingDisabled.
+                      Nodes that are cordoned by Scale operator are not listed.
+                    type: string
+                  nodesDraining:
+                    description: List of nodes on which the Scale operator is currently
+                      evicting pods
+                    items:
+                      properties:
+                        node:
+                          description: The node that is currently drained by the Scale
+                            operator
+                          type: string
+                        ongoingPodEvictions:
+                          description: The pods that the Scale operator is currently
+                            evicting
+                          items:
+                            type: string
+                          type: array
+                        podEvictionsFailed:
+                          description: The pods that failed to evict. The Scale operator
+                            continues to try to evict these pods.
+                          items:
+                            type: string
+                          type: array
+                      required:
+                      - node
+                      - ongoingPodEvictions
+                      - podEvictionsFailed
+                      type: object
+                    type: array
+                  podEvictionRequests:
+                    description: List of daemon core pod evictions that are requested
+                      by third party (like machine config operator).
+                    items:
+                      properties:
+                        pods:
+                          description: Scale core pods that has been requested for
+                            eviction.
+                          type: string
+                        requestor:
+                          description: Name of requestor that requests the eviction
+                            of the pod.
+                          type: string
+                      required:
+                      - pods
+                      - requestor
+                      type: object
+                    type: array
+                required:
+                - nodesCordonedByOperator
+                - nodesCordonedByOthers
+                type: object
               failureGroup:
                 description: FailureGroup whose pods are upgraded next
                 type: string
@@ -708,9 +801,38 @@ spec:
                     description: List of core pods with unknown status. Pods scheduled
                       on unreachable nodes are listed here.
                     type: string
-                  podsWaitingForDelete:
+                  podsUnsafeToDelete:
+                    description: List of core pods that can currently not be deleted
+                      because deleting the pods would result in an unsafe condition.
+                    items:
+                      properties:
+                        deleteUnsafeReason:
+                          description: The reason why the pods are unsafe to be deleted
+                          type: string
+                        pods:
+                          description: List of core pods that are not safe to be deleted
+                            by the Storage Scale operator
+                          type: string
+                      required:
+                      - deleteUnsafeReason
+                      - pods
+                      type: object
+                    type: array
+                  podsWaitingToBeDeleted:
                     description: List of core pods that will be deleted soon
-                    type: string
+                    items:
+                      properties:
+                        deleteReason:
+                          description: Reason for deleting the core pods
+                          type: string
+                        pods:
+                          description: List of core pods that will be deleted soon
+                          type: string
+                      required:
+                      - deleteReason
+                      - pods
+                      type: object
+                    type: array
                   quorumPods:
                     description: List of pods that act as quorum node for Spectrum
                       Scale
@@ -722,7 +844,6 @@ spec:
                 - podsStarting
                 - podsTerminating
                 - podsUnknown
-                - podsWaitingForDelete
                 - quorumPods
                 type: object
               versions:

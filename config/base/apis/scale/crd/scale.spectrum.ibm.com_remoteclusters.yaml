@@ -20,9 +20,6 @@ spec:
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
-    - jsonPath: .spec.gui.host
-      name: Host
-      type: string
     - jsonPath: .status.conditions[?(@.type=="Ready")].status
       name: Ready
       type: string
@@ -52,8 +49,10 @@ spec:
               contactNodes:
                 description: This property is optional and provides a list of nodes
                   from the storage cluster to be used as the remote cluster contact
-                  nodes. The names should be the daemon node names. If not specified,
-                  the operator uses any 3 nodes detected from the storage cluster.
+                  nodes. The names must be the daemon node names. If not specified,
+                  the operator uses all quorum nodes detected from the storage cluster.
+                  If the contact node names are not resolvable in local cluster, configure
+                  the 'hostAliases' with node name and IP in Cluster CR.
                 items:
                   type: string
                 type: array
@@ -71,14 +70,38 @@ spec:
                       namespace.
                     type: string
                   host:
-                    description: host of the remote cluster REST API endpoint.  This
-                      must be resolvable by DNS.
+                    description: host references a REST API endpoint on the remote
+                      cluster. This must be resolvable by DNS. This field is DEPRECATED
+                      and will be removed in a future release. Use field 'hosts' instead.
                     type: string
+                  hosts:
+                    description: hosts references one or more REST API endpoints on
+                      the remote cluster. Up to 3 endpoints can be specified. The
+                      hosts must be resolvable by DNS.
+                    items:
+                      type: string
+                    maxItems: 3
+                    type: array
                   insecureSkipVerify:
                     description: insecureSkipVerify controls whether a client verifies
                       the server's certificate chain and host name. If set true, TLS
                       is susceptible to machine-in-the-middle attacks.
                     type: boolean
+                  passwordRotation:
+                    description: passwordRotation allows to configure automatic password
+                      rotation of the container operator and CSI admin GUI users.
+                      Automatic password rotation is disabled if this section is not
+                      specified.
+                    properties:
+                      passwordChangeInterval:
+                        default: "80"
+                        description: 'passwordChangeInterval allows the configuration
+                          in days for the operator to change the user passwords on
+                          the storage cluster. Specify the value surrounded by double
+                          quotes (like passwordChangeFrequency: "30"). The default
+                          value is 80 days.'
+                        type: string
+                    type: object
                   port:
                     default: 443
                     description: It specifies the port of the Remote Cluster.
@@ -96,7 +119,6 @@ spec:
                     type: string
                 required:
                 - csiSecretName
-                - host
                 - secretName
                 type: object
             required:
@@ -173,6 +195,11 @@ spec:
                   - type
                   type: object
                 type: array
+              lastPasswordChange:
+                description: lastPasswordChange indicates when the passwords for the
+                  remote storage users was last changed by the operator. This field
+                  is only present if the automatic password rotation function is enabled.
+                type: string
               localKeySHADigest:
                 description: localKeySHADigest is the digest of the public access
                   key that must be used by the remote cluster in order to communicate

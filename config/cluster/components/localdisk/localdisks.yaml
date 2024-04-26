@@ -1,0 +1,47 @@
+apiVersion: scale.spectrum.ibm.com/v1beta1
+kind: LocalDisk
+metadata:
+  name: worker0-vdb
+spec:
+  node: worker0.example.com
+  device: /dev/vdb
+---
+apiVersion: scale.spectrum.ibm.com/v1beta1
+kind: LocalDisk
+metadata:
+  name: worker1-vdb
+spec:
+  node: worker1.example.com
+  device: /dev/vdb
+---
+apiVersion: scale.spectrum.ibm.com/v1beta1
+kind: LocalDisk
+metadata:
+  name: worker2-vdb
+spec:
+  node: worker2.example.com
+  device: /dev/vdb
+---
+apiVersion: scale.spectrum.ibm.com/v1beta1
+kind: LocalDisk
+metadata:
+  name: worker0-vdc
+spec:
+  node: worker0.example.com
+  device: /dev/vdc
+---
+apiVersion: scale.spectrum.ibm.com/v1beta1
+kind: LocalDisk
+metadata:
+  name: worker1-vdc
+spec:
+  node: worker1.example.com
+  device: /dev/vdc
+---
+apiVersion: scale.spectrum.ibm.com/v1beta1
+kind: LocalDisk
+metadata:
+  name: worker2-vdc
+spec:
+  node: worker2.example.com
+  device: /dev/vdc

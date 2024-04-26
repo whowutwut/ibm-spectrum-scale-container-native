@@ -35,3 +35,4 @@ replacements:
           - webhooks.[name=vclusterinterconnect.scale.spectrum.ibm.com].clientConfig.caBundle
           - webhooks.[name=vasyncreplication.scale.spectrum.ibm.com].clientConfig.caBundle
           - webhooks.[name=vapprovalrequest.scale.spectrum.ibm.com].clientConfig.caBundle
+          - webhooks.[name=vremotecluster.scale.spectrum.ibm.com].clientConfig.caBundle
